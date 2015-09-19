@@ -21,23 +21,46 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/url"
+	"os"
 
 	"github.com/JaquerEspeis/mapillary"
 	mapillaryapi "github.com/JaquerEspeis/mapillary/v2"
 	"launchpad.net/go-unityscopes/v2"
 )
 
-const clientID = "WHJxWW40RWhyVGR6ajVEci1saHZNUTpiNmViMzg2MTQwMjkwZjhk"
-
 // UbuntuMapillaryScope is a scope that shows Mapillary street level photos.
 type UbuntuMapillaryScope struct {
+}
+
+type conf struct {
+	ClientID string
 }
 
 type imgInfo struct {
 	*mapillaryapi.GetSearchImRandomSelect
 	ImageURL string
+}
+
+func clientID() (string, error) {
+	confFile, err := os.Open("conf.json")
+	if err != nil {
+		return "", err
+	}
+	defer confFile.Close()
+	var config conf
+	confFileContents, err := ioutil.ReadAll(confFile)
+	if err != nil {
+		return "", err
+	}
+	err = json.Unmarshal(confFileContents, &config)
+	if err != nil {
+		return "", err
+	}
+	return config.ClientID, nil
 }
 
 // SetScopeBase is defined just to conform with the interface.
@@ -60,8 +83,12 @@ func (s *UbuntuMapillaryScope) Search(query *scopes.CannedQuery, metadata *scope
 }
 
 func (s *UbuntuMapillaryScope) getRandomCuratedImageInfo() (info imgInfo, err error) {
-	client := mapillaryapi.NewClient(clientID)
 	var response imgInfo
+	id, err := clientID()
+	if err != nil {
+		return response, err
+	}
+	client := mapillaryapi.NewClient(id)
 	if err := client.Get("search/im/randomselected", url.Values{}, &response); err != nil {
 		return response, err
 	}
